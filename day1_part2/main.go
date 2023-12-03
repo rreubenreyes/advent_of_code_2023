@@ -140,6 +140,10 @@ func main() {
 	for k := range digits {
 		trie.Insert(k)
 	}
+	p := LineParser{
+		Trie:   trie,
+		Digits: digits,
+	}
 
 	f, err := os.ReadFile("./input.txt")
 	if err != nil {
@@ -149,11 +153,6 @@ func main() {
 	lines := strings.Split(string(f), "\n")
 	var ans int
 	for _, line := range lines {
-		p := LineParser{
-			Trie:   trie,
-			Digits: digits,
-		}
-
 		v := p.Parse(line)
 		fmt.Printf("%s %d\n", line, v)
 		ans += v
