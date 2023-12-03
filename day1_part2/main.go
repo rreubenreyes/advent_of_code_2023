@@ -23,7 +23,7 @@ func (t *Trie) Insert(s string) {
 			cur = v
 		} else {
 			cur.Children[ss] = &Trie{
-				Value:    s,
+				Value:    ss,
 				Children: make(map[string]*Trie),
 			}
 			cur = cur.Children[ss]
@@ -57,6 +57,7 @@ func (p LineParser) Parse(line string) int {
 
 	for left, right := 0, 1; right <= len(line); {
 		window := line[left:right]
+		// fmt.Println(window)
 		// fmt.Println(right, len(line))
 		// fmt.Printf("spelled digit check %s %d %d %d ", window, left, right, len(line))
 		// current window not in trie, window is too small; reset window
@@ -87,13 +88,13 @@ func (p LineParser) Parse(line string) int {
 		if first == "" {
 			first = v
 			right++
-			left = right - 1
+			left = right - 2
 			continue
 		}
 		if first != "" {
 			last = v
 			right++
-			left = right - 1
+			left = right - 2
 			continue
 		}
 
