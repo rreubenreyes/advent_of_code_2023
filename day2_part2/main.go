@@ -73,8 +73,17 @@ func main() {
 	for _, line := range lines {
 		game := GameFromLine(line)
 
-		// count min red, blue, green of each pull in game
-		// add power of these minimums to answer
+		// count max red, blue, green of each pull in game
+		var r, g, b int
+		for _, p := range game.Pulls {
+			r = max(r, p.Red)
+			g = max(g, p.Green)
+			b = max(b, p.Blue)
+		}
+
+		// add "power" of these maximums to answer
+		ans += r * g * b
 	}
+
 	fmt.Println(ans)
 }
