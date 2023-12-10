@@ -14,10 +14,29 @@ type Glyph struct {
 	Coordinates Point
 }
 
-// TODO:  reimplement this, too little sleep rn
 func (g Glyph) Neighbors() (neighbors []Glyph) {
-	for i := g.Coordinates.X; i < g.Coordinates.X+len(g.Value); i++ {
-		neighbors = append(neighbors, g.Schematic.GlyphAt(i, g.Coordinates.Y))
+	getNeighbors := func(x, y int) {
+		for i := x - 1; i <= x+len(g.Value); i++ {
+			v, ok := g.Schematic.GlyphAt(i, y)
+			if ok {
+				neighbors = append(neighbors, v)
+			}
+		}
+	}
+
+	// look up
+	getNeighbors(g.Coordinates.X, g.Coordinates.Y-1)
+	// look down
+	getNeighbors(g.Coordinates.X, g.Coordinates.Y+1)
+	// look left
+	v, ok := g.Schematic.GlyphAt(g.Coordinates.X-1, g.Coordinates.Y)
+	if ok {
+		neighbors = append(neighbors, v)
+	}
+	// look right
+	v, ok = g.Schematic.GlyphAt(g.Coordinates.X+len(g.Value), g.Coordinates.Y)
+	if ok {
+		neighbors = append(neighbors, v)
 	}
 
 	return
@@ -49,36 +68,49 @@ type Schematic struct {
 	rows [][]Glyph
 }
 
-// TODO:  reimplement this with a map, too little sleep rn
-func (s Schematic) GlyphAt(x, y int) Glyph {
-	return s.rows[y][x]
+func (s Schematic) GlyphAt(x, y int) (Glyph, bool) {
+	if y < 0 || y >= len(s.rows) {
+		// row out of bounds
+		return Glyph{}, false
+	}
+	if x < 0 || x >= len(s.rows[y]) {
+		// column out of bounds
+		return Glyph{}, false
+	}
+
+	return s.rows[y][x], true
 }
 
 func (sch *Schematic) AppendRow(row string) (glyphs []Glyph) {
-	var cur string
+	buf := []Point{}
 	rowNum := len(sch.rows)
+	var cur string
 	for colNum, rune := range row {
 		s := string(rune)
 		_, err := strconv.Atoi(s)
 		if err != nil {
-			// string at col is not a digit
-			if len(cur) > 0 {
-				glyphs = append(glyphs, NewGlyph(sch, cur, Point{
-					X: colNum - 1 - (len(cur) - 1),
-					Y: rowNum,
-				}))
-				cur = ""
+			// if not digit, assign all previous coordinates to accumulated value,
+			for _, coord := range buf {
+				glyphs = append(glyphs, NewGlyph(sch, cur, coord))
 			}
+			buf = []Point{}
 
-			glyphs = append(glyphs, NewGlyph(sch, s, Point{
-				X: colNum - (len(cur) - 1),
-				Y: rowNum,
-			}))
+			// then immediately assign the current coordinate and value
+			glyphs = append(glyphs, NewGlyph(sch, s, Point{X: colNum, Y: rowNum}))
+			cur = ""
 		} else {
-			// string at col is a digit
-			cur += s
-		}
+			// if digit, don't immediately assign the current coordinate
+			buf = append(buf, Point{X: colNum, Y: rowNum})
 
+			// store the current digit to be assigned later
+			cur += s
+			if colNum == len(row)-1 {
+				// if the last column has a digit, always assign it
+				for _, coord := range buf {
+					glyphs = append(glyphs, NewGlyph(sch, cur, coord))
+				}
+			}
+		}
 	}
 
 	sch.rows = append(sch.rows, glyphs)
@@ -87,7 +119,7 @@ func (sch *Schematic) AppendRow(row string) (glyphs []Glyph) {
 }
 
 func main() {
-	f, err := os.ReadFile("./sample_input.txt")
+	f, err := os.ReadFile("./input.txt")
 	if err != nil {
 		panic(err)
 	}
@@ -97,17 +129,31 @@ func main() {
 	var numbers []Glyph
 	for _, line := range lines {
 		glyphs := s.AppendRow(line)
-		for _, g := range glyphs {
+		for i := 0; i < len(glyphs); {
+			g := glyphs[i]
 			if g.Kind == "number" {
 				numbers = append(numbers, g)
 			}
+
+			i += len(g.Value)
 		}
 	}
 
 	// examine neighbors of all numbers to see if any contain symbols
-	fmt.Printf("numbers: %+v\n", numbers)
-	fmt.Printf("neighbors: %+v\n", numbers[0].Neighbors())
-
 	var ans int
+	for _, g := range numbers {
+		neighbors := g.Neighbors()
+		for _, n := range neighbors {
+			if n.Kind != "blank" {
+				v, err := strconv.Atoi(g.Value)
+				if err != nil {
+					panic(err)
+				}
+				ans += v
+				break
+			}
+		}
+	}
+
 	fmt.Println(ans)
 }
