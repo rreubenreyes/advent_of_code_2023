@@ -7,39 +7,83 @@ import (
 	"strings"
 )
 
-type SchematicSymbol struct {
-	Value string
-	Kind  string
+type Glyph struct {
+	Schematic   *Schematic
+	Value       string
+	Kind        string
+	Coordinates Point
 }
 
-type Coordinate struct {
+// TODO:  reimplement this, too little sleep rn
+func (g Glyph) Neighbors() (neighbors []Glyph) {
+	for i := g.Coordinates.X; i < g.Coordinates.X+len(g.Value); i++ {
+		neighbors = append(neighbors, g.Schematic.GlyphAt(i, g.Coordinates.Y))
+	}
+
+	return
+}
+
+func NewGlyph(s *Schematic, value string, coords Point) Glyph {
+	var kind string
+	if _, err := strconv.Atoi(value); err == nil {
+		kind = "number"
+	} else if value == "." {
+		kind = "blank"
+	} else {
+		kind = "symbol"
+	}
+
+	return Glyph{
+		Schematic:   s,
+		Value:       value,
+		Kind:        kind,
+		Coordinates: coords,
+	}
+}
+
+type Point struct {
 	X, Y int
 }
 
-func ParseRow(rowNum int, row string, m map[Coordinate]*string) map[Coordinate]*string {
-	cur := new(string)
-	for col, rune := range row {
+type Schematic struct {
+	rows [][]Glyph
+}
+
+// TODO:  reimplement this with a map, too little sleep rn
+func (s Schematic) GlyphAt(x, y int) Glyph {
+	return s.rows[y][x]
+}
+
+func (sch *Schematic) AppendRow(row string) (glyphs []Glyph) {
+	var cur string
+	rowNum := len(sch.rows)
+	for colNum, rune := range row {
 		s := string(rune)
 		_, err := strconv.Atoi(s)
 		if err != nil {
-			// allocate a new pointer and store the symbol we found
-			cur = new(string)
-			*cur = s
+			// string at col is not a digit
+			if len(cur) > 0 {
+				glyphs = append(glyphs, NewGlyph(sch, cur, Point{
+					X: colNum - 1 - (len(cur) - 1),
+					Y: rowNum,
+				}))
+				cur = ""
+			}
 
+			glyphs = append(glyphs, NewGlyph(sch, s, Point{
+				X: colNum - (len(cur) - 1),
+				Y: rowNum,
+			}))
 		} else {
-			// modify the current pointer as we discover more digits
-			*cur += s
+			// string at col is a digit
+			cur += s
 		}
 
-		// fmt.Printf("(%d, %d) contains %s\n", col, rowNum, *cur)
-		m[Coordinate{X: col, Y: rowNum}] = cur
-		if err != nil {
-			// immediately allocate a new pointer if the last string wasn't a digit
-			cur = new(string)
-		}
 	}
 
-	return m
+	sch.rows = append(sch.rows, glyphs)
+
+	return
 }
 
 func main() {
@@ -49,15 +93,21 @@ func main() {
 	}
 
 	lines := strings.Split(string(f), "\n")
-	m := make(map[Coordinate]*string)
+	s := Schematic{}
+	var numbers []Glyph
+	for _, line := range lines {
+		glyphs := s.AppendRow(line)
+		for _, g := range glyphs {
+			if g.Kind == "number" {
+				numbers = append(numbers, g)
+			}
+		}
+	}
+
+	// examine neighbors of all numbers to see if any contain symbols
+	fmt.Printf("numbers: %+v\n", numbers)
+	fmt.Printf("neighbors: %+v\n", numbers[0].Neighbors())
+
 	var ans int
-	for rowNum, line := range lines {
-		m = ParseRow(rowNum, line, m)
-	}
-
-	for k, v := range m {
-		fmt.Printf("coord: %+v, value: %+v\n", k, *v)
-	}
-
 	fmt.Println(ans)
 }
