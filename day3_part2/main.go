@@ -9,19 +9,21 @@ import (
 
 type Glyph struct {
 	Schematic   *Schematic
-	ID          int
 	Value       string
 	Kind        string
+	ID          int
 	Coordinates Point
 }
 
 func (g Glyph) Neighbors() (neighbors []Glyph) {
-	// TODO: make this function aware of Glyph.ID; don't return duplicates
+	seenIDs := make(map[int]struct{})
 	getNeighbors := func(x, y int) {
 		for i := x - 1; i <= x+len(g.Value); i++ {
 			v, ok := g.Schematic.GlyphAt(i, y)
-			if ok {
+			_, seen := seenIDs[v.ID]
+			if ok && !seen {
 				neighbors = append(neighbors, v)
+				seenIDs[v.ID] = struct{}{}
 			}
 		}
 	}
@@ -32,13 +34,17 @@ func (g Glyph) Neighbors() (neighbors []Glyph) {
 	getNeighbors(g.Coordinates.X, g.Coordinates.Y+1)
 	// look left
 	v, ok := g.Schematic.GlyphAt(g.Coordinates.X-1, g.Coordinates.Y)
-	if ok {
+	_, seen := seenIDs[v.ID]
+	if ok && !seen {
 		neighbors = append(neighbors, v)
+		seenIDs[v.ID] = struct{}{}
 	}
 	// look right
 	v, ok = g.Schematic.GlyphAt(g.Coordinates.X+len(g.Value), g.Coordinates.Y)
-	if ok {
+	_, seen = seenIDs[v.ID]
+	if ok && !seen {
 		neighbors = append(neighbors, v)
+		seenIDs[v.ID] = struct{}{}
 	}
 
 	return
@@ -158,16 +164,20 @@ func main() {
 
 	// examine neighbors of all numbers to see if any contain symbols
 	var ans int
+	// fmt.Printf("%+v\n", gears)
 	for _, g := range gears {
 		neighbors := g.Neighbors()
+		adjacentNumbers := []int{}
 		for _, n := range neighbors {
 			if n.Kind == "number" {
-				v, err := strconv.Atoi(g.Value)
-				if err != nil {
-					panic(err)
+				v, err := strconv.Atoi(n.Value)
+				if err == nil {
+					adjacentNumbers = append(adjacentNumbers, v)
+					if len(adjacentNumbers) == 2 {
+						ans += adjacentNumbers[0] * adjacentNumbers[1]
+						break
+					}
 				}
-				ans += v
-				break
 			}
 		}
 	}
