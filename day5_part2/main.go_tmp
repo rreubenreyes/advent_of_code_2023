@@ -1,4 +1,4 @@
-package main
+package set_theory
 
 import (
 	"fmt"
@@ -14,36 +14,36 @@ type Range struct {
 
 func (r Range) MaybeMapRange(start, end int) (ranges [][]int) {
 	offset := r.DestinationStart - r.SourceStart
-	appendRange := func(s, e int) {
-		if e-s > 0 {
-			ranges = append(ranges, []int{s, e})
-		}
+
+	fmt.Printf("input range is [%d, %d), source range is [%d, %d)\n",
+		start, end,
+		r.SourceStart, r.SourceStart+r.RangeLength,
+	)
+	intersectionStart := max(start, r.SourceStart)
+	intersectionEnd := min(end, r.SourceStart+r.RangeLength)
+	isIntersectionValid := intersectionEnd > intersectionStart
+	fmt.Printf("\tintersection: [%d, %d); [%d, %d) with offset\n", intersectionStart, intersectionEnd, intersectionStart+offset, intersectionEnd+offset)
+
+	if !isIntersectionValid {
+		// no intersection at all; no ranges match
+		fmt.Println("\tno intersection")
+		return ranges
 	}
 
-	var destStart, destEnd int
-	if start >= r.SourceStart && end < r.SourceStart+r.RangeLength {
-		// "inner join"
-		// fmt.Printf("[%d, %d) is fully within [%d, %d)\n", start, end, r.SourceStart, r.SourceStart+r.RangeLength)
-		destStart = start + offset
-		destEnd = min(end+offset, r.SourceStart+r.RangeLength)
+	ranges = append(ranges, []int{intersectionStart + offset, intersectionEnd + offset})
+	// append the intersection and look for any other overlap
+	leftDiffStart := start
+	leftDiffEnd := r.SourceStart
+	fmt.Printf("\tleft:         [%d, %d)\n", leftDiffStart, leftDiffEnd)
+	if leftDiffEnd > leftDiffStart {
+		ranges = append(ranges, []int{leftDiffStart, leftDiffEnd})
+	}
 
-		appendRange(destStart, destEnd)
-	} else if end >= r.SourceStart && end < r.SourceStart+r.RangeLength {
-		// "left join"
-		// fmt.Printf("[%d, %d) is partially within [%d, %d); source range has a higher starting bound\n", start, end, r.SourceStart, r.SourceStart+r.RangeLength)
-		destStart = r.DestinationStart
-		destEnd = min(end+offset, r.SourceStart+r.RangeLength)
-
-		appendRange(destStart, destEnd)
-		appendRange(start, r.SourceStart)
-	} else if start >= r.SourceStart && start < r.SourceStart+r.RangeLength {
-		// "right join"
-		// fmt.Printf("[%d, %d) is partially within [%d, %d); source range has a lower ending bound\n", start, end, r.SourceStart, r.SourceStart+r.RangeLength)
-		destStart = start + offset
-		destEnd = r.SourceStart + r.RangeLength + offset
-
-		appendRange(destStart, destEnd)
-		appendRange(r.SourceStart+r.RangeLength, end)
+	rightDiffStart := r.SourceStart + r.RangeLength
+	rightDiffEnd := end
+	fmt.Printf("\tright:        [%d, %d)\n", rightDiffStart, rightDiffEnd)
+	if rightDiffEnd > rightDiffStart {
+		ranges = append(ranges, []int{rightDiffStart, rightDiffEnd})
 	}
 
 	// fmt.Printf("MaybeMapRange result: %+v\n", ranges)
@@ -224,7 +224,7 @@ func AlmanacFromFile(f string) (a Almanac) {
 }
 
 func main() {
-	almanac := AlmanacFromFile("./input.txt")
+	almanac := AlmanacFromFile("./sample_input.txt")
 
 	ranges := almanac.SeedRanges
 	seedToSoil, _ := almanac.ResourceMap("seed", "soil")
@@ -236,12 +236,19 @@ func main() {
 	humidityToLocation, _ := almanac.ResourceMap("humidity", "location")
 
 	ranges = seedToSoil.LookupRanges(ranges)
+	fmt.Printf("%+v\n\n", ranges)
 	ranges = soilToFertilizer.LookupRanges(ranges)
+	fmt.Printf("%+v\n\n", ranges)
 	ranges = fertilizerToWater.LookupRanges(ranges)
+	fmt.Printf("%+v\n\n", ranges)
 	ranges = waterToLight.LookupRanges(ranges)
+	fmt.Printf("%+v\n\n", ranges)
 	ranges = lightToTemperature.LookupRanges(ranges)
+	fmt.Printf("%+v\n\n", ranges)
 	ranges = temperatureToHumidity.LookupRanges(ranges)
+	fmt.Printf("%+v\n\n", ranges)
 	ranges = humidityToLocation.LookupRanges(ranges)
+	fmt.Printf("%+v\n\n", ranges)
 
 	var ans int
 	for i, r := range ranges {
